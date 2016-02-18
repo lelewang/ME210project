@@ -19,10 +19,12 @@ void setup()
 void loop()
 {
   duration = pulseIn(pin, HIGH);
-  Serial.write(duration);
-  Serial.println(" is the period (ms)");
-  Serial.write(1/duration);
-  Serial.println(" is the frequency (kHz)");
+  Serial.print(duration);
+  Serial.println(" is high (us)....");
+  
+  duration = pulseIn(pin, LOW);
+  Serial.print(duration);
+  Serial.println(" is low (us)....");
   
   delay(500);
 }
