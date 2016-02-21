@@ -10,7 +10,6 @@ int pin = 13;
 unsigned long duration;
 
 void setup()
-
 {
   pinMode(pin, INPUT);
   Serial.begin(9600);
