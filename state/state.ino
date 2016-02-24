@@ -34,6 +34,8 @@ int rm_dir = 8;
 #define TIMER3 3000
 #define IR_THRESH 800
 
+#define MOTOR_SPEED 200
+
 /* Global parameter */
 static int state = STOP;
 static int timer1_init = 0;
@@ -60,12 +62,33 @@ int checkTape(int pin);
 
 /******* Main function ************/
 void setup() {
+  
+  pinmode(enable,INPUT);
+  pinmode(led,OUTPUT);
+
+  pinmode(ir_fl,INPUT);
+  pinmode(ir_fm,INPUT);
+  pinmode(ir_fr,INPUT);
+  
+  pinmode(ir_bl,INPUT);
+  pinmode(ir_bm,INPUT);
+  pinmode(ir_br,INPUT);
+
+  pinmode(bc_in,INPUT);
+
+  pinmode(lm_dir,OUTPUT);
+  pinmode(lm_pwm,OUTPUT);
+  pinmode(rm_dir,OUTPUT);
+  pinmode(rm_pwm,OUTPUT);
+  
   reading = LOW;
+  Serial.begin(9600);
 }
 
 void loop() {
   if (state != STOP && checkTimer(TIMER1, timer1_init)) {
     state = STOP;
+    stopMotor();
     /* TODO: turn off everything */
     return; 
   } else {
@@ -151,25 +174,34 @@ bool checkTimer(int duration, int init) {
 
 void turnLeft(void) {
   // right motor forward
+  analogWrite(lm_pwm, MOTOR_SPEED);
+  analogWrite(rm_pwm, MOTOR_SPEED);
 }
 void turnRight(void) {
-  
+  analogWrite(lm_pwm, MOTOR_SPEED * -1);
+  analogWrite(rm_pwm, MOTOR_SPEED * -1);
 }
 void reverseTurnRight(void) {
   // right motor reverse
+  analogWrite(lm_pwm, MOTOR_SPEED * -1);
+  analogWrite(rm_pwm, MOTOR_SPEED * -1);
 }
 void reverseTurnLeft(void) {
-  
+  analogWrite(lm_pwm, MOTOR_SPEED);
+  analogWrite(rm_pwm, MOTOR_SPEED);
 }
 
 void goForward(void) {
-  
+  analogWrite(lm_pwm, MOTOR_SPEED * -1);
+  analogWrite(rm_pwm, MOTOR_SPEED);
 }
 void goBack(void) {
-  
+  analogWrite(lm_pwm, MOTOR_SPEED);
+  analogWrite(rm_pwm, MOTOR_SPEED * -1);
 }
 void stopMotor(void) {
-  
+  analogWrite(lm_pwm,0);
+  analogWrite(rm_pwm,0);
 }
 
 int beaconFound(void) {
