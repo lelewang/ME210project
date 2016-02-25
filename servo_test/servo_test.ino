@@ -20,7 +20,7 @@ void loop() {
     }
     offTime = 20000 - onTime;
     Serial.println(onTime);
-    for (int i=0; i<100; ++i) {
+    for (int i=0; i<1000; ++i) {
       digitalWrite(pinNum,HIGH);
       delayMicroseconds(onTime);
       digitalWrite(pinNum,LOW);

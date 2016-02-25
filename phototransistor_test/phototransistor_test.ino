@@ -7,8 +7,8 @@
  */
 int pin = 13;
 
-unsigned long duration;
-
+unsigned long duration1;
+unsigned long duration2;
 void setup()
 {
   pinMode(pin, INPUT);
@@ -17,13 +17,15 @@ void setup()
 
 void loop()
 {
-  duration = pulseIn(pin, HIGH);
-  Serial.print(duration);
+  duration1 = pulseIn(pin, HIGH);
+  Serial.print(duration1);
   Serial.println(" is high (us)....");
   
-  duration = pulseIn(pin, LOW);
-  Serial.print(duration);
+  duration2 = pulseIn(pin, LOW);
+  Serial.print(duration2);
   Serial.println(" is low (us)....");
+  Serial.print(duration1 + duration2);
+  Serial.println();
   
-  delay(500);
+  delay(1000);
 }
