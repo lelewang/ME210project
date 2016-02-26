@@ -1,6 +1,6 @@
 
 /* Input and output pin assignment */
-int enable = 0; // overall control
+int enable = 2; // overall control
 int led = 1;
 
 int ir_fl = A0;
@@ -11,12 +11,12 @@ int ir_bl = A3;
 int ir_bm = A4;
 int ir_br = A5;
 
-int bc_in = 13;
+int bc_in = 8;
 
-int lm_dir = 12;
-int lm_pwm = 11;
-int rm_pwm = 9;
-int rm_dir = 8;
+int lm_dir = 10;
+int rm_dir = 11;
+int lm_pwm = 12;
+int rm_pwm = 13;
 
 /* State definition */
 #define STOP 0
@@ -32,9 +32,12 @@ int rm_dir = 8;
 #define TIMER1 120000
 #define TIMER2 3000
 #define TIMER3 3000
-#define IR_THRESH 800
+#define IR_THRESH 900
 
-#define MOTOR_SPEED 200
+const int R_FWD = 80; // below 125 is forward (right wheel)
+const int R_BWD = 170; // above 125 is backward (right wheel)
+const int L_FWD = 170;
+const int L_BWD = 80;
 
 /* Global parameter */
 static int state = STOP;
@@ -54,8 +57,6 @@ void turnLeft(void);
 void turnRight(void);
 void goForward(void);
 void goBack(void);
-void reverseTurnLeft(void);
-void reverseTurnRight(void);
 
 int beaconFound(void);
 int checkTape(int pin);
@@ -63,30 +64,32 @@ int checkTape(int pin);
 /******* Main function ************/
 void setup() {
   
-  pinmode(enable,INPUT);
-  pinmode(led,OUTPUT);
+  pinMode(enable,INPUT);
+  pinMode(led,OUTPUT);
 
-  pinmode(ir_fl,INPUT);
-  pinmode(ir_fm,INPUT);
-  pinmode(ir_fr,INPUT);
+  pinMode(ir_fl,INPUT);
+  pinMode(ir_fm,INPUT);
+  pinMode(ir_fr,INPUT);
   
-  pinmode(ir_bl,INPUT);
-  pinmode(ir_bm,INPUT);
-  pinmode(ir_br,INPUT);
+  pinMode(ir_bl,INPUT);
+  pinMode(ir_bm,INPUT);
+  pinMode(ir_br,INPUT);
 
-  pinmode(bc_in,INPUT);
+  pinMode(bc_in,INPUT);
 
-  pinmode(lm_dir,OUTPUT);
-  pinmode(lm_pwm,OUTPUT);
-  pinmode(rm_dir,OUTPUT);
-  pinmode(rm_pwm,OUTPUT);
+  pinMode(lm_dir,OUTPUT);
+  pinMode(lm_pwm,OUTPUT);
+  pinMode(rm_dir,OUTPUT);
+  pinMode(rm_pwm,OUTPUT);
   
   reading = LOW;
   Serial.begin(9600);
+  stopMotor();
 }
 
 void loop() {
   if (state != STOP && checkTimer(TIMER1, timer1_init)) {
+    Serial.println("final...");
     state = STOP;
     stopMotor();
     /* TODO: turn off everything */
@@ -94,39 +97,47 @@ void loop() {
   } else {
     switch(state) {
       case(STOP):
+        Serial.println("STOP");
         reading = digitalRead(enable);
+        Serial.print(reading);
         if (reading == HIGH && millis() - time > debounce) { 
-          state = INIT;
+          state = INIT; 
+          Serial.println("INIT");
           digitalWrite(led, HIGH);
           timer1_init = millis();
-          turnLeft();
+          turnRight();
           time = millis();
         }
+        break;
       case(INIT):
-        if (beaconFound() == 1000) {
+        if (beaconFound() == 5000) {
           state = BEACON;
+          Serial.println("BEACON");
         }
         break;
       case(BEACON):
-        if (beaconFound() == 0) {
+        if (beaconFound() != 5000) {
           goForward();
           state = LINE_SEARCH;
+          Serial.println("LINE_SEARCH");
         }
         break;
       case(LINE_SEARCH): 
         if (checkTape(ir_fr)) {
-          reverseTurnRight();
+          turnLeft();
           delay(2000);
           goForward();
         } else if (checkTape(ir_fl)) {
           goForward();
           state = LINE_FOLLOW;
+          Serial.println("LINE_FOLLOW");
         }
         break;
       case(LINE_FOLLOW):
         if (checkTape(ir_fl) && checkTape(ir_fm) && checkTape(ir_fr)) {
           stopMotor();
           state = DROP;
+          Serial.println("DROP");
           timer2_init = millis();
           /* TODO: dropping mechanism, e.g. start dropping timer */
         } else if (checkTape(ir_fm)) {
@@ -142,6 +153,7 @@ void loop() {
           /* TODO: retract wings */
           goBack();
           state = LINE_BACK;
+          Serial.println("LINE_BACK");
         }
         break;
       case(LINE_BACK):
@@ -149,19 +161,21 @@ void loop() {
           delay(200);
           stopMotor();
           state = RELOAD;
+          Serial.println("RELOAD");
           timer3_init = millis();
         } else if (checkTape(ir_bm)) {
           goBack();
         } else if (checkTape(ir_bl)) {
-          reverseTurnLeft();
+          turnLeft();
         } else if (checkTape(ir_br)) {
-          reverseTurnRight();
+          turnRight();
         }
         break;
       case(RELOAD):
         if (checkTimer(TIMER3, timer3_init)) {
           goForward();
           state = LINE_FOLLOW;
+          Serial.println("LINE_FOLLOW");
         }
         break; 
     }
@@ -174,49 +188,54 @@ bool checkTimer(int duration, int init) {
 
 void turnLeft(void) {
   // right motor forward
-  analogWrite(lm_pwm, MOTOR_SPEED);
-  analogWrite(rm_pwm, MOTOR_SPEED);
+  digitalWrite(lm_pwm, HIGH);
+  digitalWrite(rm_pwm, HIGH);
+  
+  analogWrite(lm_dir, L_BWD);
+  analogWrite(rm_dir, R_FWD);
 }
 void turnRight(void) {
-  analogWrite(lm_pwm, MOTOR_SPEED * -1);
-  analogWrite(rm_pwm, MOTOR_SPEED * -1);
-}
-void reverseTurnRight(void) {
-  // right motor reverse
-  analogWrite(lm_pwm, MOTOR_SPEED * -1);
-  analogWrite(rm_pwm, MOTOR_SPEED * -1);
-}
-void reverseTurnLeft(void) {
-  analogWrite(lm_pwm, MOTOR_SPEED);
-  analogWrite(rm_pwm, MOTOR_SPEED);
+  digitalWrite(lm_pwm, HIGH);
+  digitalWrite(rm_pwm, HIGH);
+  
+  analogWrite(lm_dir, L_FWD);
+  analogWrite(rm_dir, R_BWD);
 }
 
 void goForward(void) {
-  analogWrite(lm_pwm, MOTOR_SPEED * -1);
-  analogWrite(rm_pwm, MOTOR_SPEED);
+  digitalWrite(lm_pwm, HIGH);
+  digitalWrite(rm_pwm, HIGH);
+ 
+  analogWrite(lm_dir, L_FWD);
+  analogWrite(rm_dir, R_FWD);
 }
 void goBack(void) {
-  analogWrite(lm_pwm, MOTOR_SPEED);
-  analogWrite(rm_pwm, MOTOR_SPEED * -1);
+  digitalWrite(lm_pwm, HIGH);
+  digitalWrite(rm_pwm, HIGH);
+  
+  analogWrite(lm_dir, L_BWD);
+  analogWrite(rm_dir, R_BWD);
 }
 void stopMotor(void) {
-  analogWrite(lm_pwm,0);
-  analogWrite(rm_pwm,0);
+  digitalWrite(lm_pwm,LOW);
+  digitalWrite(rm_pwm,LOW);
 }
 
 int beaconFound(void) {
   unsigned long duration = 0;
   unsigned int ret = 0;
   
-  for(int i=0; i<5; ++i) {
+  //for(int i=0; i<5; ++i) {
     duration = pulseIn(bc_in, HIGH);
     duration = pulseIn(bc_in, LOW) + duration;
-  }
-  duration = duration / 5; 
-
-  if (duration > 700)
+  //}
+  //duration = duration / 5; 
+  Serial.print("beacon duration");
+  Serial.println(duration);
+  
+  if ((duration > 800) && (duration < 1200)) // period = 1000 for 1k
     ret = 1000;
-  else if ((duration < 300) && (duration > 100)) 
+  else if ((duration < 300) && (duration > 10)) // period = 200 for 5k
     ret = 5000;
   else
     ret = 0;
@@ -226,8 +245,12 @@ int beaconFound(void) {
 int checkTape(int pin) {
   int val = 0;
   val = analogRead(pin);
-  if (pin > IR_THRESH) 
+  if (val > IR_THRESH) {
+    Serial.print("IR value");
+    Serial.print(pin);
+    Serial.println(val);
     return 1;
+  }
   return 0;
 }
 

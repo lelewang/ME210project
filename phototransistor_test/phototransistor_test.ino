@@ -5,7 +5,7 @@
  * Output: serial monitor print of duration and frequency
  * Note: looped about twice in a second
  */
-int pin = 13;
+int pin = 8;
 
 unsigned long duration1;
 unsigned long duration2;
