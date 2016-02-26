@@ -29,7 +29,7 @@ int rm_pwm = 13;
 #define RELOAD 7
 
 /* Global constant */
-#define TIMER1 120000
+#define TIMER1 30000
 #define TIMER2 3000
 #define TIMER3 3000
 #define IR_THRESH 900
@@ -41,17 +41,18 @@ const int L_BWD = 80;
 
 /* Global parameter */
 static int state = STOP;
-static int timer1_init = 0;
-static int timer2_init = 0; 
-static int timer3_init = 0;
+static long timer1_init = 0;
+static long timer2_init = 0; 
+static long timer3_init = 0;
 
 /* Switch parameters */
 int reading;           // the current reading from the input pin
+int prev;
 long time = 0;
 long debounce = 200;   // the debounce time, increase if the output flickers
 
 /* Helper function */
-bool checkTimer(int duration, int init);
+bool checkTimer(long duration, long init);
 void stopMotor(void);
 void turnLeft(void);
 void turnRight(void);
@@ -83,6 +84,7 @@ void setup() {
   pinMode(rm_pwm,OUTPUT);
   
   reading = LOW;
+  prev = LOW;
   Serial.begin(9600);
   stopMotor();
 }
@@ -100,7 +102,7 @@ void loop() {
         Serial.println("STOP");
         reading = digitalRead(enable);
         Serial.print(reading);
-        if (reading == HIGH && millis() - time > debounce) { 
+        if (reading == HIGH && prev == LOW && millis() - time > debounce) { 
           state = INIT; 
           Serial.println("INIT");
           digitalWrite(led, HIGH);
@@ -108,6 +110,7 @@ void loop() {
           turnRight();
           time = millis();
         }
+        prev = reading;
         break;
       case(INIT):
         if (beaconFound() == 5000) {
@@ -117,6 +120,9 @@ void loop() {
         break;
       case(BEACON):
         if (beaconFound() != 5000) {
+          Serial.println("pre line search");
+          turnRight();
+          delay(600);
           goForward();
           state = LINE_SEARCH;
           Serial.println("LINE_SEARCH");
@@ -124,11 +130,14 @@ void loop() {
         break;
       case(LINE_SEARCH): 
         if (checkTape(ir_fr)) {
-          turnLeft();
-          delay(2000);
+          turnRight();
+          delay(3000);
           goForward();
         } else if (checkTape(ir_fl)) {
           goForward();
+          delay(500);
+          turnRight();
+          delay(500);
           state = LINE_FOLLOW;
           Serial.println("LINE_FOLLOW");
         }
@@ -182,7 +191,7 @@ void loop() {
   }
 }
 
-bool checkTimer(int duration, int init) {
+bool checkTimer(long duration, long init) {
   return (millis()-init > duration);
 }
 
@@ -224,18 +233,25 @@ void stopMotor(void) {
 int beaconFound(void) {
   unsigned long duration = 0;
   unsigned int ret = 0;
+  unsigned int count1 = 0;
+  unsigned int count2 = 0;
+
+  const int count = 5;
   
-  //for(int i=0; i<5; ++i) {
+  for(int i=0; i<count; ++i) {
     duration = pulseIn(bc_in, HIGH);
     duration = pulseIn(bc_in, LOW) + duration;
-  //}
-  //duration = duration / 5; 
-  Serial.print("beacon duration");
-  Serial.println(duration);
-  
-  if ((duration > 800) && (duration < 1200)) // period = 1000 for 1k
+    if ((duration > 800) && (duration < 1200)) // period = 1000 for 1k
+      count1 = count1 + 1;
+    else if ((duration < 300) && (duration > 100)) // period = 200 for 5k
+      count2 = count2 + 1;
+    else {
+      break;
+    }
+  }
+  if (count1 == count)
     ret = 1000;
-  else if ((duration < 300) && (duration > 10)) // period = 200 for 5k
+  else if (count2 == count)
     ret = 5000;
   else
     ret = 0;
@@ -246,9 +262,9 @@ int checkTape(int pin) {
   int val = 0;
   val = analogRead(pin);
   if (val > IR_THRESH) {
-    Serial.print("IR value");
-    Serial.print(pin);
-    Serial.println(val);
+//    Serial.print("IR value");
+      Serial.println(pin);
+//    Serial.println(val);
     return 1;
   }
   return 0;

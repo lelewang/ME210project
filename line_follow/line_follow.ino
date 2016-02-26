@@ -85,7 +85,7 @@ void loop() {
   }
   switch(state) {
     case(LINE_FOLLOW):
-      if (checkTape(ir_fl) && checkTape(ir_fm) && checkTape(ir_fr)) {
+      if ((checkTape(ir_fl) && checkTape(ir_fm)) || (checkTape(ir_fm) && checkTape(ir_fr))) {
         stopMotor();
         state = DROP;
         Serial.println("DROP");
@@ -179,7 +179,9 @@ int checkTape(int pin) {
   if (val > IR_THRESH) {
     Serial.print("IR value");
     Serial.print(pin);
+    Serial.print(" ");
     Serial.println(val);
+    delay(500);
     return 1;
   }
   return 0;
