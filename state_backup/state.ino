@@ -34,10 +34,10 @@ int rm_pwm = 13;
 #define TIMER3 3000
 #define IR_THRESH 900
 
-const int R_FWD = 87; // below 127 is forward (right wheel)
-const int R_BWD = 167; // above 127 is backward (right wheel)
-const int L_FWD = 167;
-const int L_BWD = 87;
+const int R_FWD = 80; // below 127 is forward (right wheel)
+const int R_BWD = 174; // above 127 is backward (right wheel)
+const int L_FWD = 174;
+const int L_BWD = 80;
 
 /* Global parameter */
 static int state = STOP;
@@ -90,8 +90,6 @@ void setup() {
 }
 
 void loop() {
-  int val = 0;
-  
   if (state != STOP && checkTimer(TIMER1, timer1_init)) {
     Serial.println("final...");
     state = STOP;
@@ -109,53 +107,45 @@ void loop() {
           Serial.println("INIT");
           digitalWrite(led, HIGH);
           timer1_init = millis();
-          turnLeft();
+          turnRight();
           time = millis();
         }
         prev = reading;
         break;
       case(INIT):
-        if (beaconFound() == 1000) {
+        if (beaconFound() == 5000) {
           state = BEACON;
           Serial.println("BEACON");
         }
         break;
       case(BEACON):
-        if (checkTape(ir_fl) || checkTape(ir_fm) || checkTape(ir_fr) ) {
-          Serial.println("LINE_SEARCH");
-          state = LINE_SEARCH;
-          stopMotor();
-          return;
-        }
-        val = beaconFound();
-        if (val == 5000) {
-          Serial.println("saw 5k");
+        if (beaconFound() != 5000) {
+          Serial.println("pre line search");
           turnRight();
-          delay(200);
-        } else if (val == 0) {
+          delay(1000);
           goForward();
-          Serial.println("saw nothing");
-          
-        } else if (val == 1000) {
-          Serial.println("saw 1k");
+          delay(1300);
           turnLeft();
+          delay(600);
+          goForward();
+          state = LINE_SEARCH;
+          Serial.println("LINE_SEARCH");
         }
         break;
       case(LINE_SEARCH):
-        if (checkTape(ir_fl) || checkTape(ir_fm) || checkTape(ir_fr)) {
+        if (checkTape(ir_fl)) {
+          int line_search_left_delay = 500;
           goForward();
-          delay(500);
+          delay(line_search_left_delay);
           turnRight();
-          delay(2000);
+          delay(line_search_left_delay);
           state = LINE_FOLLOW;
-          Serial.println("LINE_FOLLOW front");
-        } else if (checkTape(ir_bl) || checkTape(ir_bm) || checkTape(ir_br)) {
-          goBack();
-          delay(800);
+          Serial.println("LINE_FOLLOW");
+        } else if (checkTape(ir_fr)) {
+          int line_search_right_delay = 3000;
           turnRight();
-          delay(2000);
-          state = LINE_FOLLOW;
-          Serial.println("LINE_FOLLOW back");
+          delay(line_search_right_delay);
+          goForward();
         }
         break;
       case(LINE_FOLLOW):
@@ -257,7 +247,7 @@ int beaconFound(void) {
   for(int i=0; i<count; ++i) {
     duration = pulseIn(bc_in, HIGH);
     duration = pulseIn(bc_in, LOW) + duration;
-    if ((duration > 700) && (duration < 1200)) // period = 1000 for 1k
+    if ((duration > 800) && (duration < 1200)) // period = 1000 for 1k
       count1 = count1 + 1;
     else if ((duration < 300) && (duration > 100)) // period = 200 for 5k
       count2 = count2 + 1;
