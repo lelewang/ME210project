@@ -134,17 +134,15 @@ void loop() {
         break;
       case(LINE_SEARCH):
         if (checkTape(ir_fl)) {
-          int line_search_left_delay = 500;
           goForward();
-          delay(line_search_left_delay);
+          delay(500);
           turnRight();
-          delay(line_search_left_delay);
+          delay(500);
           state = LINE_FOLLOW;
           Serial.println("LINE_FOLLOW");
         } else if (checkTape(ir_fr)) {
-          int line_search_right_delay = 3000;
           turnRight();
-          delay(line_search_right_delay);
+          delay(3000);
           goForward();
         }
         break;

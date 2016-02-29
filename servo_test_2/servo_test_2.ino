@@ -1,6 +1,6 @@
-const int left = 9;
-const int mid = 10;
-const int right = 11;
+const int left = 3;
+const int mid = 5;
+const int right = 6;
 #include <Servo.h> 
 
 Servo myservo_left;
