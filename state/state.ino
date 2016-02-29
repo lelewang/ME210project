@@ -1,27 +1,27 @@
 #include <Servo.h> 
 
 /* Input and output pin assignment */
-int enable = 2; // overall control
-int led = 1;
+#define enable 2 // overall control
+#define led 1
 
-int ir_fl = A0;
-int ir_fm = A1;
-int ir_fr = A2;
+#define ir_fl A0
+#define ir_fm A1
+#define ir_fr A2
 
-int ir_bl = A3;
-int ir_bm = A4;
-int ir_br = A5;
+#define ir_bl A3
+#define ir_bm A4
+#define ir_br A5
 
-int bc_in = 8;
+#define bc_in 8
 
-int lm_dir = 10;
-int rm_dir = 11;
-int lm_pwm = 12;
-int rm_pwm = 13;
+#define lm_dir 5 // used to be 10 
+#define rm_dir 6 // used to be 11
+#define lm_pwm 4 // used to be 12
+#define rm_pwm 7 // used to be 13
 
-int l_servo = 3;
-int m_servo = 5;
-int r_servo = 6;
+#define left 9
+#define mid 10
+#define right 11
 
 /* Servo motor */
 Servo myservo_left;
@@ -40,14 +40,14 @@ Servo myservo_right;
 
 /* Global constant */
 #define TIMER1 120000 // 2 min game
-#define TIMER2 1000 // drop time
+#define TIMER2 2000 // drop time
 #define TIMER3 1000 // reload time
-#define IR_THRESH 850 // tape sensor
+#define IR_THRESH 800 // tape sensor
 
-const int R_FWD = 87; // below 127 is forward (right wheel)
-const int R_BWD = 167; // above 127 is backward (right wheel)
-const int L_FWD = 167;
-const int L_BWD = 87;
+const int R_FWD = 77; // below 127 is forward (right wheel)
+const int R_BWD = 177; // above 127 is backward (right wheel)
+const int L_FWD = 180;
+const int L_BWD = 77;
 
 /* Global parameter */
 static int state = STOP;
@@ -92,15 +92,16 @@ void setup() {
   pinMode(lm_pwm,OUTPUT);
   pinMode(rm_dir,OUTPUT);
   pinMode(rm_pwm,OUTPUT);
+
+  pinMode(left, OUTPUT);
+  pinMode(mid, OUTPUT);
+  pinMode(right, OUTPUT);
   
   reading = LOW;
   prev = LOW;
   Serial.begin(9600);
   stopMotor();
 
-  pinMode(left, OUTPUT);
-  pinMode(mid, OUTPUT);
-  pinMode(right, OUTPUT);
   Serial.begin(9600);
   myservo_left.attach(left);
   myservo_mid.attach(mid);
@@ -112,6 +113,12 @@ void setup() {
 
 void loop() {
   int val = 0;
+  int fl_val = checkTape(ir_fl);
+  int fm_val = checkTape(ir_fm);
+  int fr_val = checkTape(ir_fr);
+  int bl_val = checkTape(ir_bl);
+  int bm_val = checkTape(ir_bm);
+  int br_val = checkTape(ir_br);
   
   if (state != STOP && checkTimer(TIMER1, timer1_init)) {
     Serial.println("final...");
@@ -126,11 +133,12 @@ void loop() {
         reading = digitalRead(enable);
         Serial.print(reading);
         if (reading == HIGH && prev == LOW && millis() - time > debounce) { 
-          state = INIT; 
+          state = INIT;
           Serial.println("INIT");
           digitalWrite(led, HIGH);
           timer1_init = millis();
-          turnLeft();
+          //turnLeft();
+          turnRight();
           time = millis();
         }
         prev = reading;
@@ -142,7 +150,7 @@ void loop() {
         }
         break;
       case(BEACON):
-        if (checkTape(ir_fr)) {
+        if (fr_val) {
           goForward();
           delay(500);
           turnRight();
@@ -151,7 +159,7 @@ void loop() {
           state = LINE_FOLLOW;
           Serial.println("LINE_FOLLOW");
           return;
-        } else if (checkTape(ir_fl)) {
+        } else if (fl_val || fm_val) {
           goForward();
           delay(500);
           turnRight();
@@ -159,35 +167,42 @@ void loop() {
           state = LINE_FOLLOW;
           Serial.println("LINE_FOLLOW");
           return;
+        } else if (bm_val || bl_val || br_val) {
+          goBack();
+          delay(2000);
+          goForward();
         }
         val = beaconFound();
         if (val == 5000) {
           Serial.println("saw 5k");
           turnRight();
           delay(500);
+//          goForward();
+//          delay(200);
         } else if (val == 0) {
           goForward();
           Serial.println("saw nothing");
         } else if (val == 1000) {
           Serial.println("saw 1k");
           turnLeft();
-          delay(200);
+          delay(100);
         }
         break;
       case(LINE_FOLLOW):
-        if (checkTape(ir_fl) && checkTape(ir_fm) && checkTape(ir_fr)) {
+        if ((fl_val && fm_val) ||  (fm_val && fr_val)) {
+          stopMotor();
+          myservo_left.writeMicroseconds(1700);
+          myservo_mid.writeMicroseconds(1400);
+          myservo_right.writeMicroseconds(1300);
           stopMotor();
           state = DROP;
           Serial.println("DROP");
           timer2_init = millis();
-          myservo_left.writeMicroseconds(1850);
-          myservo_mid.writeMicroseconds(1400);
-          myservo_right.writeMicroseconds(1250);
-        } else if (checkTape(ir_fm)) {
+        } else if (fm_val) {
           goForward();
-        } else if (checkTape(ir_fl)) {
+        } else if (fl_val) {
           turnLeft();
-        } else if (checkTape(ir_fr)) {
+        } else if (fr_val) {
           turnRight();
         }
         break;
@@ -202,17 +217,17 @@ void loop() {
         }
         break;
       case(LINE_BACK):
-        if (checkTape(ir_bl) && checkTape(ir_bm) && checkTape(ir_br)) {
+        if ((bl_val && bm_val) ||  (bm_val && br_val)) {
           delay(200);
           stopMotor();
           state = RELOAD;
           Serial.println("RELOAD");
           timer3_init = millis();
-        } else if (checkTape(ir_bm)) {
+        } else if (bm_val) {
           goBack();
-        } else if (checkTape(ir_bl)) {
+        } else if (bl_val) {
           turnLeft();
-        } else if (checkTape(ir_br)) {
+        } else if (br_val) {
           turnRight();
         }
         break;
@@ -264,6 +279,8 @@ void goBack(void) {
 void stopMotor(void) {
   digitalWrite(lm_pwm,LOW);
   digitalWrite(rm_pwm,LOW);
+  analogWrite(lm_dir, 127);
+  analogWrite(rm_dir, 127);
 }
 
 int beaconFound(void) {
@@ -272,7 +289,7 @@ int beaconFound(void) {
   unsigned int count1 = 0;
   unsigned int count2 = 0;
 
-  const int count = 5;
+  const int count = 3;
   
   for(int i=0; i<count; ++i) {
     duration = pulseIn(bc_in, HIGH);
