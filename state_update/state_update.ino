@@ -40,13 +40,13 @@ Servo myservo_right;
 
 /* Global constant */
 #define TIMER1 120000//120000 // 2 min game
-#define TIMER2 300 // drop time
-#define TIMER3 1000 // reload time
+#define TIMER2 1000 // drop time
+#define TIMER3 2000 // reload time
 
 #define IR_THRESH 600 // tape sensor
 
-const int R_FWD = 52; // below 127 is forward (right wheel)
-const int R_BWD = 202; // above 127 is backward (right wheel)
+const int R_FWD = 57; // below 127 is forward (right wheel)
+const int R_BWD = 197; // above 127 is backward (right wheel)
 const int L_FWD = 197;
 const int L_BWD = 57;
 
@@ -217,18 +217,18 @@ void loop() {
           
           myservo_left.writeMicroseconds(1700);
           myservo_mid.writeMicroseconds(1400);
-          myservo_right.writeMicroseconds(1250);
+          myservo_right.writeMicroseconds(1350);
           state = DROP;
           timer2_init = millis();
         } else if (tape_reading & mask_fm) {
           goForward();
         } else if (tape_reading & mask_fl) {
           turnLeft();
-          delay(100);
+          delay(50);
           goForward();
         } else if (tape_reading & mask_fr) {
           turnRight();
-          delay(100);
+          delay(50);
           goForward();
         } 
         break;
@@ -253,11 +253,11 @@ void loop() {
           goBack();
         } else if (tape_reading & mask_bl) {
           turnLeft();
-          delay(100);
+          delay(50);
           goBack();
         } else if (tape_reading & mask_br) {
           turnRight();
-          delay(100);
+          delay(50);
           goBack();
         }
         break;

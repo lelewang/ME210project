@@ -40,8 +40,9 @@ Servo myservo_right;
 
 /* Global constant */
 #define TIMER1 120000//120000 // 2 min game
-#define TIMER2 300 // drop time
-#define TIMER3 1000 // reload time
+#define TIMER2 1000 // drop time
+#define TIMER3 2000 // reload time
+#define TIMER4 100
 
 #define IR_THRESH 600 // tape sensor
 
@@ -56,11 +57,23 @@ const int R_BWD_S = 187; // above 127 is backward (right wheel)
 const int L_FWD_S = 187;
 const int L_BWD_S = 67;
 
+const byte mask_fl = B00100000;
+const byte mask_fm = B00010000;
+const byte mask_fr = B00001000;
+const byte mask_bl = B00000100;
+const byte mask_bm = B00000010;
+const byte mask_br = B00000001;
+
+byte tape_reading = B0;
+int beacon_reading = 0;
+int beacon_old = 0;
+
 /* Global parameter */
 static int state = STOP;
 static long timer1_init = 0;
 static long timer2_init = 0; 
 static long timer3_init = 0;
+static long timer4_init = 0;
 static long timer_beacon_init = 0;
 static int TIMER_BEACON = 0;
 
@@ -81,8 +94,8 @@ void turnRightS(void);
 void goForwardS(void);
 void goBack(void);
 
-int beaconFound(void);
-int checkTape(int pin);
+void readBeacon(void);
+void readTape();
 
 /******* Main function ************/
 void setup() {
@@ -122,15 +135,9 @@ void setup() {
   myservo_right.writeMicroseconds(2000);
 }
 
-int beacon_old = 0;
+
 void loop() {
-  int val = 0;
-  int fl_val = checkTape(ir_fl);
-  int fm_val = checkTape(ir_fm);
-  int fr_val = checkTape(ir_fr);
-  int bl_val = checkTape(ir_bl);
-  int bm_val = checkTape(ir_bm);
-  int br_val = checkTape(ir_br);
+  readTape();
   
   if (state != STOP && checkTimer(TIMER1, timer1_init)) {
     state = STOP;
@@ -141,9 +148,11 @@ void loop() {
     switch(state) {
       
       case(STOP):
+        Serial.println("stop..");
         reading = digitalRead(enable);
         if (reading == HIGH && prev == LOW && millis() - time > debounce) { 
           state = INIT;
+          Serial.println("init");
           digitalWrite(led, HIGH);
           timer1_init = millis();
           turnRightS();
@@ -153,74 +162,86 @@ void loop() {
         break;
         
       case(INIT):
-        if (beaconFound() == 1000) {
+        readBeacon();
+        if (beacon_reading == 1000) {
           state = BEACON;
-        } else if ((beaconFound()==0) && (beacon_old==1)) {
+          Serial.println("beacon");
+        } else if ((beacon_reading==0) && (beacon_old==1)) {
           turnRightS();
           delay(500);
           state = BEACON;
-        } else if (beaconFound() == 5000) {
+          Serial.println("beacon");
+        } else if (beacon_reading == 5000) {
           beacon_old = 1;
         }
         break;
         
       case(BEACON):
-        if (fr_val) {
+        if (tape_reading & mask_fr) {
           goForwardS();
           delay(400);
           turnRightS();
           delay(1300);
           goForward();
           state = LINE_FOLLOW;
+          Serial.println("line follow");
           return;
-        } else if (fl_val || fm_val) {
+        } else if (tape_reading & (mask_fr | mask_fm)) {
           goForwardS();
           delay(400);
           turnRightS();
           delay(400);
           state = LINE_FOLLOW;
           return;
-        } else if (bm_val || bl_val || br_val) {
+        } else if (tape_reading & (mask_bl | mask_bm | mask_br)) {
           goBack();
           delay(1000);
           goForward();
         }
         
         if (!checkTimer(TIMER_BEACON, timer_beacon_init)) return;
-        val = beaconFound();
-        if (val == 5000) {
+        
+        readBeacon();
+        if (beacon_reading == 5000) {
           turnRight();
-          TIMER_BEACON = 500;
+          TIMER_BEACON = 400;
           timer_beacon_init = millis();
-        } else if (val == 0) {
+        } else if (beacon_reading == 0) {
           goForward();
-        } else if (val == 1000) {
+        } else if (beacon_reading == 1000) {
           turnLeft();
-          TIMER_BEACON = 100;
+          TIMER_BEACON = 50;
           timer_beacon_init = millis();
         }
         break;
         
       case(LINE_FOLLOW):
-        if ((fl_val && fm_val) ||  (fm_val && fr_val)) {
+        if ( (tape_reading & mask_fm) && ((tape_reading & mask_fl) || (tape_reading & mask_fr)) ) {
+          //adjustPos();
+          goForward();
+          delay(120);
+          stopMotor();
+          
           myservo_left.writeMicroseconds(1700);
           myservo_mid.writeMicroseconds(1400);
-          myservo_right.writeMicroseconds(1300);
-          delay(100);
-          stopMotor();
+          myservo_right.writeMicroseconds(1350);
           state = DROP;
           timer2_init = millis();
-        } else if (fm_val) {
+          return;
+        }
+        if (!checkTimer(TIMER4, timer4_init)) {
+          return;
+        } else if (tape_reading & mask_fm) {
           goForward();
-        } else if (fl_val) {
+        } else if (tape_reading & mask_fl) {
           turnLeft();
-          delay(100);
-          goForward();
-        } else if (fr_val) {
+          timer4_init = millis();
+        } else if (tape_reading & mask_fr) {
           turnRight();
-          delay(100);
+          timer4_init = millis();
+        } else {
           goForward();
-        } 
+        }
         break;
         
       case(DROP):
@@ -234,20 +255,20 @@ void loop() {
         break;
         
       case(LINE_BACK):
-        if ((bl_val && bm_val) ||  (bm_val && br_val)) {
+        if ( (tape_reading & mask_bm) && ((tape_reading & mask_bl) || (tape_reading & mask_br)) ) {
           delay(200);
           stopMotor();
           state = RELOAD;
           timer3_init = millis();
-        } else if (bm_val) {
+        } else if (tape_reading & mask_bm) {
           goBack();
-        } else if (bl_val) {
+        } else if (tape_reading & mask_bl) {
           turnLeft();
-          delay(100);
+          delay(50);
           goBack();
-        } else if (br_val) {
+        } else if (tape_reading & mask_br) {
           turnRight();
-          delay(100);
+          delay(50);
           goBack();
         }
         break;
@@ -328,13 +349,13 @@ void stopMotor(void) {
   analogWrite(rm_dir, 127);
 }
 
-int beaconFound(void) {
+void readBeacon(void) {
   unsigned long duration = 0;
   unsigned int ret = 0;
   unsigned int count1 = 0;
   unsigned int count2 = 0;
 
-  const int count = 3;
+  const int count = 6;
   
   for(int i=0; i<count; ++i) {
     duration = pulseIn(bc_in, HIGH);
@@ -346,22 +367,31 @@ int beaconFound(void) {
       break;
   }
   if (count1 == count)
-    ret = 1000;
+    beacon_reading = 1000;
   else if (count2 == count)
-    ret = 5000;
+    beacon_reading = 5000;
   else
-    ret = 0;
-  return ret;
+    beacon_reading = 0;
 }
 
-int checkTape(int pin) {
-  int val = 0;
-  val = analogRead(pin);
-  if (val > IR_THRESH) {
-      Serial.println(pin);
-    return 1;
+void readTape() {
+  tape_reading = 0;
+  tape_reading = ( ((analogRead(ir_fl) > IR_THRESH) << 5) 
+               |((analogRead(ir_fm) > IR_THRESH) << 4) 
+               |((analogRead(ir_fr) > IR_THRESH) << 3) 
+               |((analogRead(ir_bl) > IR_THRESH) << 2) 
+               |((analogRead(ir_bm) > IR_THRESH) << 1) 
+               |(analogRead(ir_br) > IR_THRESH) );
+}
+
+void adjustPos() {
+  if ((tape_reading & mask_fl) && (tape_reading & mask_fr)) return;
+  if (tape_reading & mask_bl) {
+    turnRight();
+    delay(50);
+  } else if (tape_reading & mask_br) {
+    turnLeft();
+    delay(50);
   }
-  return 0;
 }
-
 
