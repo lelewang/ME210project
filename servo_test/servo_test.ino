@@ -1,31 +1,40 @@
-const int pinNum = 10;
-int onTime;
-int offTime;
-  
+/*
+ * This code tests functionality of Servo library and position function of servo motor.
+ * Inputs: N.A.
+ * Outputs: 3 digital signals for servo motor enable.
+ */
+#include <Servo.h> 
+
+#define left 9
+#define mid 10
+#define right 11
+
+/* Servo motor */
+Servo myservo_left;
+Servo myservo_mid;
+Servo myservo_right;
+
 void setup() {
-  pinMode(pinNum, OUTPUT);
+  pinMode(left, OUTPUT);
+  pinMode(mid, OUTPUT);
+  pinMode(right, OUTPUT);
   Serial.begin(9600);
-  onTime = 1000;
-  offTime = 20000-onTime;
+  myservo_left.attach(left);
+  myservo_mid.attach(mid);
+  myservo_right.attach(right);
+  myservo_left.writeMicroseconds(1040);
+  myservo_mid.writeMicroseconds(2100);
+  myservo_right.writeMicroseconds(2000);
 }
 void loop() {
-  if (Serial.available()) {
-    int inChar = Serial.read();
-    if (inChar == '1') {
-      onTime = 1000;
-    } else if (inChar == '2') {
-      onTime = 1500;
-    } else if (inChar == '3') {
-      onTime = 2000;
-    }
-    offTime = 20000 - onTime;
-    Serial.println(onTime);
-    for (int i=0; i<1000; ++i) {
-      digitalWrite(pinNum,HIGH);
-      delayMicroseconds(onTime);
-      digitalWrite(pinNum,LOW);
-      delayMicroseconds(offTime);
-    }
-  }
-}
 
+  delay(2000);
+  myservo_left.writeMicroseconds(1700);
+  myservo_mid.writeMicroseconds(1400);
+  myservo_right.writeMicroseconds(1300);
+  
+  delay(2000);
+  myservo_left.writeMicroseconds(1030);
+  myservo_mid.writeMicroseconds(2100);
+  myservo_right.writeMicroseconds(2000);
+}

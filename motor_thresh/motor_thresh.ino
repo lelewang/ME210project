@@ -1,3 +1,6 @@
+/* 
+ *  This code is used to evaluate how straight the robot could go.
+ */
 int enable = 2;
 
 int lm_dir = 10;

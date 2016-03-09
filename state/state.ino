@@ -1,3 +1,7 @@
+/* This code contains the final state machine implementation of ME210 course project. 
+ * Inputs: switch enable, 6 IR tape sensors, 1 IR beacon sensors.
+ * Outputs: 3 servo motor controls, 4 DC motor controls (through H bridge).
+ */
 #include <Servo.h> 
 
 /* Input and output pin assignment */

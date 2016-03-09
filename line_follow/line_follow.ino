@@ -1,5 +1,10 @@
+/* This code is for the purpose of test line following mechanism.
+ * Inputs: 6 IR tape sensor readings from analog pins.
+ * Output: digital signals for enable and direction to drive 2 DC motors.
+ * 
+ * Last Update: 02/25/2016
+ */
 
-/* Input and output pin assignment */
 int ir_fl = A0;
 int ir_fm = A1;
 int ir_fr = A2;

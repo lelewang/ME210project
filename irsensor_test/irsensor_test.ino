@@ -1,3 +1,9 @@
+/* This file is used for IR tape sensor testing.
+ * Input: three IR sensor signals from analog pins.
+ * Output: three numerical reading printed on serial monitor.
+ * 
+ * Last Update: 02/28/2016
+ */
 int ir_l = A0;
 int ir_m = A1;
 int ir_r = A2;

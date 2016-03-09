@@ -1,14 +1,8 @@
-/******** ME210 Lab3 Part4 *********
- * Functionality:
- * 1. DC motor speed control by potentiometer
- * 2. DC motor direction reversed when a key is pressed
- * 
- * Input: voltage across potentiometer
- * Output: PWM analog signal for speed control
- *         digital logic for direction control
- *         
- * Setup: potentiometer -- arduino -- L293 H-bridge -- DC motor
- * *********************************/
+/* This code is used for motor test. 
+ *  It applies PWM on the direction instead of enable pin of the H bridge.
+ *  Inputs: N.A.
+ *  Outputs: 4 digital signals for enable and direction of H bridge to drive two DC motors
+ */
  
 int lm_dir = 10;
 int rm_dir = 11;
